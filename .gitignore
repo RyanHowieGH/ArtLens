@@ -1,0 +1,14 @@
+# .gitignore file located in the ArtLens/ folder
+
+# General
+.DS_Store
+
+# Backend specific ignores
+artlens-backend/node_modules
+artlens-backend/.env
+artlens-backend/gcp-credentials.json
+
+# Mobile app specific ignores
+ArtLens-Mobile/node_modules
+ArtLens-Mobile/.expo
+ArtLens-Mobile/.idea
