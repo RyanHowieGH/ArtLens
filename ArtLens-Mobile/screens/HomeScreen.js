@@ -9,7 +9,9 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import axios from 'axios';
 
 // !!! IMPORTANT: REPLACE WITH YOUR COMPUTER'S LOCAL IP ADDRESS !!!
-const BACKEND_URL = 'http://192.168.50.140:3001'; //
+// const BACKEND_URL = 'http://192.168.50.140:3001'; //
+const BACKEND_URL = 'http://10.187.139.224:3001'; //
+
 
 export default function HomeScreen({ navigation }) {
   // Use the new permission hook
