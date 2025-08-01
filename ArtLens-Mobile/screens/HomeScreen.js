@@ -1,56 +1,66 @@
-// screens/HomeScreen.js
-import React, { useState, useRef } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Modal, ActivityIndicator, Alert } from 'react-native';
-// --- START: THE FIX ---
-// The old import was: import { Camera } from 'expo-camera';
-// The new way is to import CameraView and the permission hook separately.
-import { CameraView, useCameraPermissions } from 'expo-camera';
-// --- END: THE FIX ---
+// screens/HomeScreen.js (CORRECTED WITH PERMISSIONS & ERROR HANDLING)
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, Modal, ActivityIndicator, Alert, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
+// --- START: THE FIX ---
+// We need to import the permission request hook along with the main library
+import * as ImagePicker from 'expo-image-picker';
+// --- END: THE FIX ---
 
-// !!! IMPORTANT: REPLACE WITH YOUR COMPUTER'S LOCAL IP ADDRESS !!!
-// const BACKEND_URL = 'http://192.168.50.140:3001'; //
-const BACKEND_URL = 'http://10.187.139.224:3001'; //
-
+// !!! REMEMBER TO USE YOUR COMPUTER'S LOCAL IP ADDRESS !!!
+const BACKEND_URL = 'http://10.189.152.79:3001';
 
 export default function HomeScreen({ navigation }) {
-  // Use the new permission hook
-  const [permission, requestPermission] = useCameraPermissions();
   const [isLoading, setIsLoading] = useState(false);
-  const cameraRef = useRef(null);
+  const [selectedImage, setSelectedImage] = useState(null);
+  
+  // --- NEW: State for media library permissions ---
+  const [mediaLibraryPermission, requestMediaLibraryPermission] = ImagePicker.useMediaLibraryPermissions();
 
-  // If permissions are still loading, show a blank screen
-  if (!permission) {
-    return <View />;
-  }
-
-  // If permissions are not granted, show a button to ask for them
-  if (!permission.granted) {
-    return (
-      <View style={styles.container}>
-        <Text style={{ textAlign: 'center' }}>We need your permission to show the camera</Text>
-        <TouchableOpacity onPress={requestPermission} style={styles.permissionButton}>
-            <Text>Grant Permission</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  const takePicture = async () => {
-    if (cameraRef.current) {
-      setIsLoading(true);
-      try {
-        const photo = await cameraRef.current.takePictureAsync();
-        uploadImage(photo.uri);
-      } catch (error) {
-        console.error('Failed to take picture:', error);
-        Alert.alert('Error', 'Failed to take picture.');
-        setIsLoading(false);
-      }
+  const pickImage = async () => {
+    // 1. Check for permissions before opening the library
+    if (!mediaLibraryPermission) {
+        // Permissions are still loading
+        return;
     }
+
+    if (mediaLibraryPermission.status !== 'granted') {
+        const { status } = await requestMediaLibraryPermission();
+        if (status !== 'granted') {
+            Alert.alert('Permission required', 'You need to grant permission to access the photo library.');
+            return;
+        }
+    }
+
+    // 2. Wrap the picker launch in a try...catch block to see errors
+    try {
+        let result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: false,
+            quality: 1,
+        });
+
+        if (!result.canceled) {
+            setSelectedImage(result.assets[0].uri);
+        }
+    } catch (error) {
+        console.error("ImagePicker Error:", error); // Log the error to the terminal
+        Alert.alert("Error", "Could not open the photo library.");
+    }
+  };
+  
+  // The analyzeImage and uploadImage functions remain the same...
+  const analyzeImage = () => {
+    if (!selectedImage) {
+      Alert.alert("No Image", "Please select an image first.");
+      return;
+    }
+    uploadImage(selectedImage);
   };
 
   const uploadImage = async (uri) => {
+    setIsLoading(true);
     const formData = new FormData();
     formData.append('image', {
       uri: uri,
@@ -60,41 +70,46 @@ export default function HomeScreen({ navigation }) {
 
     try {
       const response = await axios.post(`${BACKEND_URL}/api/identify`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
 
       if (response.data.success) {
+        setSelectedImage(null); 
         navigation.navigate('Result', { artwork: response.data.data });
       } else {
         Alert.alert('Identification Failed', response.data.error || 'Could not identify the artwork.');
       }
     } catch (error) {
       console.error('Upload Error:', error);
-      Alert.alert('Connection Error', 'Could not connect to the server. Make sure it is running.');
+      Alert.alert('Connection Error', 'Could not connect to the server.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  // The UI remains the same...
   return (
     <View style={styles.container}>
-      {/* Use CameraView instead of Camera */}
-      <CameraView style={styles.camera} facing={'back'} ref={cameraRef}>
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.button} onPress={takePicture}>
-            <Text style={styles.text}> SNAP </Text>
-          </TouchableOpacity>
-        </View>
-      </CameraView>
-
-      {/* Loading Modal */}
-      <Modal
-        transparent={true}
-        animationType="none"
-        visible={isLoading}
-      >
+      <TouchableOpacity style={styles.imageContainer} onPress={pickImage}>
+        {selectedImage ? (
+          <Image source={{ uri: selectedImage }} style={styles.imagePreview} />
+        ) : (
+          <View style={styles.placeholder}>
+            <Ionicons name="image-outline" size={80} color="#ccc" />
+            <Text style={styles.placeholderText}>Tap to select an image</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+      <View style={styles.bottomContainer}>
+        <TouchableOpacity 
+          style={[styles.analyzeButton, !selectedImage && styles.disabledButton]} 
+          onPress={analyzeImage}
+          disabled={!selectedImage}
+        >
+          <Text style={styles.analyzeText}>Analyze Image</Text>
+        </TouchableOpacity>
+      </View>
+      <Modal visible={isLoading} transparent={true} animationType="fade">
         <View style={styles.modalBackground}>
           <ActivityIndicator size="large" color="#ffffff" />
           <Text style={styles.loadingText}>Analyzing...</Text>
@@ -104,35 +119,55 @@ export default function HomeScreen({ navigation }) {
   );
 }
 
-// --- STYLES ---
+// Styles remain the same...
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center' }, // Added justifyContent for permission screen
-  camera: { flex: 1 },
-  buttonContainer: {
+  container: { flex: 1, backgroundColor: '#f0f0f0' },
+  imageContainer: {
     flex: 1,
-    backgroundColor: 'transparent',
-    flexDirection: 'row',
-    margin: 20,
     justifyContent: 'center',
-    alignItems: 'flex-end',
-  },
-  button: {
-    alignSelf: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 50,
-    padding: 15,
-    paddingHorizontal: 20,
+    margin: 20,
+    backgroundColor: '#fff',
+    borderRadius: 10,
     borderWidth: 2,
-    borderColor: 'white',
+    borderColor: '#ddd',
+    borderStyle: 'dashed',
   },
-  permissionButton: { // Style for the new permission button
-    marginTop: 20,
-    padding: 10,
-    backgroundColor: '#ddd',
-    alignSelf: 'center',
+  placeholder: {
+    alignItems: 'center',
   },
-  text: { fontSize: 18, color: 'white', fontWeight: 'bold' },
+  placeholderText: {
+    marginTop: 10,
+    color: '#aaa',
+    fontSize: 16,
+  },
+  imagePreview: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+  },
+  bottomContainer: {
+    height: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  analyzeButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 15,
+    paddingHorizontal: 40,
+    borderRadius: 30,
+    width: '100%',
+    alignItems: 'center',
+  },
+  disabledButton: {
+    backgroundColor: '#a9a9a9',
+  },
+  analyzeText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   modalBackground: {
     flex: 1,
     alignItems: 'center',
