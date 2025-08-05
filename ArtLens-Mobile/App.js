@@ -5,6 +5,8 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons'; // Import icons
 import  CustomTabBar  from './components/CustomTabBar'; // Import custom tab bar
+import { LanguageProvider, useLanguage } from './context/LanguageContext';
+
 
 // Import all screens
 import HomeScreen from './screens/HomeScreen';
@@ -33,36 +35,29 @@ function HomeStack() {
   );
 }
 
+function MainTabs() {
+  // const { t } = useLanguage(); // Use the hook to get the translation function
+
+  return (
+    <Tab.Navigator
+      initialRouteName="Home" // Keep this as the stable English key
+      tabBar={(props) => <CustomTabBar {...props} />}
+    >
+      <Tab.Screen name="Settings" component={SettingsScreen} />
+      <Tab.Screen name="Home" component={HomeStack} />
+      <Tab.Screen name="Favorites" component={FavoritesScreen} />
+    </Tab.Navigator>
+  );
+}
+
 // This is the main component with the bottom tab bar
 export default function App() {
   return (
-    <NavigationContainer>
-      <Tab.Navigator
-        initialRouteName="Home"
-        tabBar={(props) => <CustomTabBar {...props} />} // Use the custom tab bar
-        screenOptions={({ route }) => ({
-          tabBarIcon: ({ focused, color, size }) => {
-            let iconName;
-            if (route.name === 'Home') {
-              iconName = focused ? 'home' : 'home-outline';
-            } else if (route.name === 'Settings') {
-              iconName = focused ? 'settings' : 'settings-outline';
-            } else if (route.name === 'Favorites') {
-              iconName = focused ? 'heart' : 'heart-outline';
-            }
-            return <Ionicons name={iconName} size={size} color={color} />;
-          },
-          tabBarActiveTintColor: 'white',
-          tabBarInactiveTintColor: '#333',
-          tabBarActiveBackgroundColor: '#555555',
-          tabBarInactiveBackgroundColor: '#d3d3d3',
-          headerShown: false, // We hide the tab navigator's header
-        })}
-      >
-        <Tab.Screen name="Settings" component={SettingsScreen} />
-        <Tab.Screen name="Home" component={HomeStack} />
-        <Tab.Screen name="Favorites" component={FavoritesScreen} />
-      </Tab.Navigator>
-    </NavigationContainer>
+    // --- WRAP EVERYTHING IN THE PROVIDER ---
+    <LanguageProvider>
+      <NavigationContainer>
+        <MainTabs />
+      </NavigationContainer>
+    </LanguageProvider>
   );
 }

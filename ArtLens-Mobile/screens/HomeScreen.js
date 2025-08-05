@@ -3,17 +3,21 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Modal, ActivityIndicator, Alert, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
-// --- START: THE FIX ---
+import { useLanguage } from '../context/LanguageContext'; // <-- Import the hook
+import * as Location from 'expo-location'; // <-- 1. IMPORT LOCATION
+
+
 // We need to import the permission request hook along with the main library
 import * as ImagePicker from 'expo-image-picker';
-// --- END: THE FIX ---
 
 // !!! REMEMBER TO USE YOUR COMPUTER'S LOCAL IP ADDRESS !!!
-const BACKEND_URL = 'http://10.189.152.79:3001';
+const BACKEND_URL = 'http://10.187.133.96:3001';
 
 export default function HomeScreen({ navigation }) {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const { t, locale } = useLanguage(); // <-- Get t and locale
+
   
   // --- NEW: State for media library permissions ---
   const [mediaLibraryPermission, requestMediaLibraryPermission] = ImagePicker.useMediaLibraryPermissions();
@@ -51,22 +55,61 @@ export default function HomeScreen({ navigation }) {
   };
   
   // The analyzeImage and uploadImage functions remain the same...
-  const analyzeImage = () => {
+  const analyzeImage = async () => { // <-- Make this function async
     if (!selectedImage) {
-      Alert.alert("No Image", "Please select an image first.");
+      Alert.alert(t('noImage'), t('noImagePrompt'));
       return;
     }
-    uploadImage(selectedImage);
+
+    setIsLoading(true); // Start loading indicator early
+
+    // --- 2. GET LOCATION DATA ---
+    try {
+      // First, request permission
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Location permission is needed to improve accuracy for local art.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Then, get the current coordinates
+      console.log("Getting user's location...");
+      let location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High, // You can specify accuracy
+          maximumAge: 0 // This forces a new reading, not a cached one
+      });
+      console.log("Location found:", location.coords);
+
+      // Now, call uploadImage with the location
+      await uploadImage(selectedImage, location.coords);
+
+    } catch (error) {
+        console.error("Location Error:", error);
+        Alert.alert("Location Error", "Could not get your location. Proceeding without it.");
+        // If location fails, we can still proceed without it
+        await uploadImage(selectedImage, null);
+    } finally {
+        // We already set isLoading to true, the upload function will set it to false
+    }
   };
 
-  const uploadImage = async (uri) => {
-    setIsLoading(true);
+  const uploadImage = async (uri, location) => { // <-- Accept location as an argument
+    // No need to setIsLoading here, it's done in analyzeImage
+
     const formData = new FormData();
     formData.append('image', {
       uri: uri,
       type: 'image/jpeg',
       name: 'photo.jpg',
     });
+    formData.append('language', locale);
+
+    // --- 4. APPEND LOCATION DATA (if available) ---
+    if (location) {
+      formData.append('latitude', location.latitude.toString());
+      formData.append('longitude', location.longitude.toString());
+    }
 
     try {
       const response = await axios.post(`${BACKEND_URL}/api/identify`, formData, {
@@ -83,7 +126,7 @@ export default function HomeScreen({ navigation }) {
       console.error('Upload Error:', error);
       Alert.alert('Connection Error', 'Could not connect to the server.');
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // End loading indicator here
     }
   };
 
@@ -96,7 +139,7 @@ export default function HomeScreen({ navigation }) {
         ) : (
           <View style={styles.placeholder}>
             <Ionicons name="image-outline" size={80} color="#ccc" />
-            <Text style={styles.placeholderText}>Tap to select an image</Text>
+          <Text style={styles.placeholderText}>{t('selectImagePrompt')}</Text>
           </View>
         )}
       </TouchableOpacity>
@@ -106,13 +149,13 @@ export default function HomeScreen({ navigation }) {
           onPress={analyzeImage}
           disabled={!selectedImage}
         >
-          <Text style={styles.analyzeText}>Analyze Image</Text>
+        <Text style={styles.analyzeText}>{t('analyzeButton')}</Text>
         </TouchableOpacity>
       </View>
       <Modal visible={isLoading} transparent={true} animationType="fade">
         <View style={styles.modalBackground}>
           <ActivityIndicator size="large" color="#ffffff" />
-          <Text style={styles.loadingText}>Analyzing...</Text>
+          <Text style={styles.loadingText}>{t('analyzing')}</Text>
         </View>
       </Modal>
     </View>
