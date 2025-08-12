@@ -3,12 +3,34 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-native';
 import * as Speech from 'expo-speech'; // Import the speech library
 import { Ionicons } from '@expo/vector-icons'; // Import icons for our button
+import { addFavorite, removeFavorite, isFavorite } from '../services/FavoritesService';
+
 
 export default function ResultScreen({ route, navigation }) {
   const { artwork } = route.params;
   
   // --- NEW: State to manage speech ---
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isFav, setIsFav] = useState(false);
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      const status = await isFavorite(artwork.title);
+      setIsFav(status);
+    };
+    checkStatus();
+  }, [artwork.title]);
+
+  // --- 4. CREATE A TOGGLE FUNCTION ---
+  const handleToggleFavorite = async () => {
+    if (isFav) {
+      await removeFavorite(artwork.title);
+      setIsFav(false);
+    } else {
+      await addFavorite(artwork);
+      setIsFav(true);
+    }
+  };
 
   // Combine all the text we want to read aloud
   const fullTextToSpeak = `
@@ -64,7 +86,16 @@ export default function ResultScreen({ route, navigation }) {
       </TouchableOpacity>
 
       <View style={styles.section}>
-        <Text style={styles.title}>{artwork.title}</Text>
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>{artwork.title}</Text>
+          <TouchableOpacity onPress={handleToggleFavorite}>
+            <Ionicons
+              name={isFav ? "heart" : "heart-outline"}
+              size={32}
+              color={isFav ? "red" : "gray"}
+            />
+          </TouchableOpacity>
+        </View>
         <Text style={styles.artist}>by {artwork.artist}</Text>
       </View>
       
@@ -103,11 +134,18 @@ const styles = StyleSheet.create({
     shadowRadius: 2.22,
     elevation: 3,
   },
+  titleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
   title: {
     fontSize: 26,
     fontWeight: 'bold',
-    marginBottom: 5,
     color: '#333',
+    flex: 1, // Allows text to wrap if it's long
+    marginRight: 10,
   },
   artist: {
     fontSize: 18,

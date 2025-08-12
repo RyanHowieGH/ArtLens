@@ -23,7 +23,7 @@ async function getArtDetailsFromText(artworkName, language = 'en') {
     console.log(`PATH A: Getting details for "${artworkName}" in language: ${language}`);
     const languageMap = { en: 'English', es: 'Spanish', fr: 'French' };
     const targetLanguage = languageMap[language] || 'English';
-    const prompt = `An image was identified as "${artworkName}". Please provide information about this artwork. 1. Identify the official title and the artist. 2. Provide a concise history of the artwork (around 100 words). 3. Provide exactly 3 interesting and distinct trivia facts about it. Format the entire response as a single, minified JSON object with no line breaks. The JSON object must have these exact keys: "title", "artist", "history", "trivia" (which should be an array of strings). Provide the entire response in ${targetLanguage}.`;
+    const prompt = `An image was identified as "${artworkName}". Please provide information about this artwork. 1. Identify the official title and the artist. 2. Provide a concise history of the artwork (around 100 words). 3. Provide exactly 3 interesting and distinct trivia facts about it. Format the entire response as a single, minified JSON object with no line breaks. The JSON object must have these exact keys: "title", "artist", "history", "trivia" (which should be an array of strings), and "thumbnailUrl". Provide the entire response in ${targetLanguage}.4. Provide a URL to a high-quality thumbnail image of the artwork.`;
 
     try {
         const response = await axios.post('https://api.openai.com/v1/chat/completions', { model: 'gpt-3.5-turbo', messages: [{ role: 'user', content: prompt }], temperature: 0.3, }, { headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` } });
@@ -51,7 +51,7 @@ async function getArtDetailsFromImageWithGPT(imageBuffer, language = 'en', locat
     if (location) {
       prompt += ` The user is currently at approximately latitude ${location.latitude} and longitude ${location.longitude}. Use this geographic context to improve the identification of local art or landmarks.`;
     }
-    prompt += ` 1. Identify the official title and the artist (if known). 2. Provide a concise history or context for the artwork (around 100 words). 3. Provide exactly 3 interesting and distinct trivia facts about it. If no trivia is known, provide interesting visual details. Format the entire response as a single, minified JSON object with no line breaks. The JSON object must have these exact keys: "title", "artist", "history", "trivia" (which should be an array of strings). Provide the entire response in ${targetLanguage}.`;
+    prompt += ` 1. Identify the official title and the artist (if known). 2. Provide a concise history or context for the artwork (around 100 words). 3. Provide exactly 3 interesting and distinct trivia facts about it. If no trivia is known, provide interesting visual details. Format the entire response as a single, minified JSON object with no line breaks. The JSON object must have these exact keys: "title", "artist", "history", "trivia" (which should be an array of strings), and "thumbnailUrl". If no official thumbnail exists, return null for "thumbnailUrl". Provide the entire response in ${targetLanguage}.4. Provide a URL to a high-quality thumbnail image of the artwork.`;
 
     try {
         const response = await axios.post('https://api.openai.com/v1/chat/completions', {

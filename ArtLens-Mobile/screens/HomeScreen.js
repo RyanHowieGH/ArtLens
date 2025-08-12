@@ -18,7 +18,6 @@ export default function HomeScreen({ navigation }) {
   const [selectedImage, setSelectedImage] = useState(null);
   const { t, locale } = useLanguage(); // <-- Get t and locale
 
-  
   // --- NEW: State for media library permissions ---
   const [mediaLibraryPermission, requestMediaLibraryPermission] = ImagePicker.useMediaLibraryPermissions();
 

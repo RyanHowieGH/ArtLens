@@ -44,7 +44,9 @@ function MainTabs() {
       tabBar={(props) => <CustomTabBar {...props} />}
     >
       <Tab.Screen name="Settings" component={SettingsScreen} />
-      <Tab.Screen name="Home" component={HomeStack} />
+      <Tab.Screen name="Home" component={HomeStack}
+            options={{ headerShown: false }} // Hide the header for the tab navigator
+            />
       <Tab.Screen name="Favorites" component={FavoritesScreen} />
     </Tab.Navigator>
   );
