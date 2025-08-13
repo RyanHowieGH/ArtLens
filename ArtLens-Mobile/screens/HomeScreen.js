@@ -6,8 +6,10 @@ import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useLanguage } from '../context/LanguageContext';
+import Constants from 'expo-constants';
 
-const BACKEND_URL = 'http://192.168.1.10:3001'; // <-- MAKE SURE THIS IS YOUR IP
+
+const BACKEND_URL = Constants.expoConfig.extra.backendUrl;
 
 export default function HomeScreen({ navigation }) {
   const [isLoading, setIsLoading] = useState(false);
