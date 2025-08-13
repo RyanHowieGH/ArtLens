@@ -6,7 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons'; // Import icons
 import  CustomTabBar  from './components/CustomTabBar'; // Import custom tab bar
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
-
+import ConfirmationScreen from './screens/ConfirmationScreen';
 
 // Import all screens
 import HomeScreen from './screens/HomeScreen';
@@ -25,6 +25,11 @@ function HomeStack() {
         name="ArtLensHome" // Use a unique name
         component={HomeScreen} 
         options={{ title: 'ArtLens' }} // This will be the header text
+      />
+      <Stack.Screen 
+        name="Confirmation" 
+        component={ConfirmationScreen} 
+        options={{ title: 'Confirm Image' }}
       />
       <Stack.Screen 
         name="Result" 
