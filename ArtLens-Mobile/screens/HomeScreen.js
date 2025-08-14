@@ -13,8 +13,8 @@ import { useLanguage } from '../context/LanguageContext';
 const USE_MOCK_LOCATION = true; 
 
 const MOCK_COORDINATES = {
-  latitude: 51.04,
-  longitude: -114.07,
+  latitude: 51.06,
+  longitude: -114.09,
 };
 
 // --- END OF MOCK DATA SETUP ---
