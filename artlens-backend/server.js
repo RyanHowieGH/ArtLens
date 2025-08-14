@@ -1,6 +1,6 @@
-// artlens-backend/server.js (FINAL VERSION WITH LOCATION)
+// artlens-backend/server.js (FINAL, REFINED VERSION)
 
-// --- Imports ---
+// --- Imports and setup are the same ---
 require('dotenv').config();
 const fs = require('fs');
 const express = require('express');
@@ -9,7 +9,6 @@ const vision = require('@google-cloud/vision');
 const axios = require('axios');
 const formidable = require('express-formidable');
 
-// --- Express App Setup ---
 const app = express();
 app.use(cors());
 app.use(formidable());
@@ -18,66 +17,85 @@ const visionClient = new vision.ImageAnnotatorClient({
     keyFilename: 'gcp-credentials.json'
 });
 
-// --- HELPER FUNCTION 1: Text-Only GPT (Fast & Cheap Path) ---
-async function getArtDetailsFromText(artworkName, language = 'en') {
-    console.log(`PATH A: Getting details for "${artworkName}" in language: ${language}`);
+// --- HELPER FUNCTION 1: Content Generation (No Changes) ---
+async function getDetailsForConfidentMatch(artworkName, language = 'en') {
+    console.log(`PATH A: Getting details for confident match: "${artworkName}"`);
     const languageMap = { en: 'English', es: 'Spanish', fr: 'French' };
     const targetLanguage = languageMap[language] || 'English';
-    const prompt = `An image was identified as "${artworkName}". Please provide information about this artwork. 1. Identify the official title and the artist. 2. Provide a concise history of the artwork (around 100 words). 3. Provide exactly 3 interesting and distinct trivia facts about it. Format the entire response as a single, minified JSON object with no line breaks. The JSON object must have these exact keys: "title", "artist", "history", "trivia" (which should be an array of strings), and "thumbnailUrl". Provide the entire response in ${targetLanguage}.4. Provide a URL to a high-quality thumbnail image of the artwork.`;
+    const prompt = `Provide information about the artwork "${artworkName}". 1. Confirm the official title and artist. 2. Provide a concise history (around 100 words). 3. Provide 3 trivia facts. 4. Provide a URL for a high-quality thumbnail. Format the response as a single, minified JSON object with keys: "title", "artist", "history", "trivia" (array of strings), and "thumbnailUrl". Respond in ${targetLanguage}.`;
 
     try {
         const response = await axios.post('https://api.openai.com/v1/chat/completions', { model: 'gpt-3.5-turbo', messages: [{ role: 'user', content: prompt }], temperature: 0.3, }, { headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` } });
         const content = response.data.choices[0].message.content;
-        console.log('OpenAI Text-Only raw response:', content);
-        return JSON.parse(content);
+        return JSON.parse(content.replace(/```json\n?|```/g, ''));
     } catch (error) {
         console.error('ERROR during Text-Only OpenAI call:', error.response ? error.response.data.error : error.message);
         throw new Error('Failed to get details from OpenAI (Text).');
     }
 }
 
-// --- HELPER FUNCTION 2: GPT Vision (Fallback Path with Location) ---
-async function getArtDetailsFromImageWithGPT(imageBuffer, language = 'en', location = null) {
-    console.log(`PATH B: Sending image to GPT-4o for analysis in language: ${language}.`);
+// --- HELPER FUNCTION 2: PERPLEXITY VISION FALLBACK (REFINED) ---
+// We remove the googleVisionHint parameter as it was causing anchoring bias.
+async function getDetailsWithPerplexityVision(imageBuffer, location = null, language = 'en') {
+    console.log(`PATH B: Using Perplexity Vision API with image and location only.`);
     if (location) {
-      console.log(`  > With location data: ${location.latitude}, ${location.longitude}`);
+        console.log(`  > With location data: ${location.latitude}, ${location.longitude}`);
     }
 
     const languageMap = { en: 'English', es: 'Spanish', fr: 'French' };
     const targetLanguage = languageMap[language] || 'English';
     const base64Image = imageBuffer.toString('base64');
     
-    let prompt = `This is an image of a piece of art. Please identify it. It might be a famous painting or a piece of local/public art.`;
-    if (location) {
-      prompt += ` The user is currently at approximately latitude ${location.latitude} and longitude ${location.longitude}. Use this geographic context to improve the identification of local art or landmarks.`;
-    }
-    prompt += ` 1. Identify the official title and the artist (if known). 2. Provide a concise history or context for the artwork (around 100 words). 3. Provide exactly 3 interesting and distinct trivia facts about it. If no trivia is known, provide interesting visual details. Format the entire response as a single, minified JSON object with no line breaks. The JSON object must have these exact keys: "title", "artist", "history", "trivia" (which should be an array of strings), and "thumbnailUrl". If no official thumbnail exists, return null for "thumbnailUrl". Provide the entire response in ${targetLanguage}.4. Provide a URL to a high-quality thumbnail image of the artwork.`;
+    // The prompt is now cleaner and relies only on the strongest signals.
+    const prompt = `
+        You are an expert art docent with live web access. Your task is to identify a piece of public art from an image and provide details about it.
+
+        **CONTEXT:**
+        - The user's location is approximately: latitude ${location?.latitude || 'N/A'}, longitude ${location?.longitude || 'N/A'}.
+
+        **INSTRUCTIONS:**
+        1.  **Analyze and Search:** Use your web search capabilities. Analyze the image and the location data to find the specific title of the mural/artwork and the artist's full name.
+        2.  **Generate Content:** Once identified, provide a concise history, 3 interesting trivia facts, and a public URL for a thumbnail image.
+        3.  **Format Output:** Respond with ONLY a single, minified JSON object with keys: "title", "artist", "history", "trivia", and "thumbnailUrl". If you cannot confidently identify the artwork, set "title" to "Unknown Artwork".
+        4.  **Language:** Provide the entire response in ${targetLanguage}.
+    `;
 
     try {
-        const response = await axios.post('https://api.openai.com/v1/chat/completions', {
-            model: 'gpt-4o',
-            messages: [{ role: 'user', content: [ { type: 'text', text: prompt }, { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}` } } ] }],
-            max_tokens: 500,
-        }, { headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` } });
-        const content = response.data.choices[0].message.content;
-        console.log('OpenAI Vision raw response:', content);
+        const response = await axios.post(
+            'https://api.perplexity.ai/chat/completions',
+            {
+                model: 'sonar-pro',
+                messages: [{
+                    role: 'user',
+                    content: [
+                        { type: 'text', text: prompt },
+                        { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}` } }
+                    ]
+                }],
+            },
+            {
+                headers: { 'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY}` },
+            }
+        );
+
+        const content = response.data.choices[0].message.content.trim();
+        console.log('Perplexity Vision Fallback raw response:', content);
         const cleanedContent = content.replace(/```json\n?|```/g, '');
         return JSON.parse(cleanedContent);
     } catch (error) {
-        console.error('ERROR during GPT Vision call:', error.response ? error.response.data.error : error.message);
-        throw new Error('Failed to get details from OpenAI (Vision).');
+        console.error('ERROR during Perplexity Vision Fallback:', error.response ? error.response.data.error : error.message);
+        throw new Error('Failed to process image with Perplexity Vision.');
     }
 }
 
-// --- Main API Endpoint with Fallback Logic ---
+
+// --- Main API Endpoint (REFINED) ---
 app.post('/api/identify', async (req, res) => {
     try {
         const { language, latitude, longitude } = req.fields;
         const imageFile = req.files.image;
-
-        if (!imageFile || imageFile.size === 0) {
-            return res.status(400).json({ success: false, error: 'No image file uploaded.' });
-        }
+        if (!imageFile || imageFile.size === 0) { /* ... */ }
+        
         console.log('Image received. Starting identification process...');
         const imageBuffer = fs.readFileSync(imageFile.path);
         
@@ -89,15 +107,21 @@ app.post('/api/identify', async (req, res) => {
             console.log(`Google Vision Best Guess: "${bestGuess}"`);
         }
         
-        const genericTerms = ['art', 'mural', 'painting', 'graffiti', 'sculpture', 'illustration', 'drawing', 'artwork'];
+        const genericTerms = ['art', 'mural', 'painting', 'graffiti', 'sculpture', 'illustration', 'drawing', 'artwork', 'person'];
         const isConfident = bestGuess && !genericTerms.some(term => bestGuess.toLowerCase().includes(term));
+        
         let finalArtDetails;
 
         if (isConfident) {
-            finalArtDetails = await getArtDetailsFromText(bestGuess, language);
+            finalArtDetails = await getDetailsForConfidentMatch(bestGuess, language);
         } else {
             const locationData = latitude && longitude ? { latitude, longitude } : null;
-            finalArtDetails = await getArtDetailsFromImageWithGPT(imageBuffer, language, locationData);
+            // We no longer pass the 'bestGuess' hint to the fallback function.
+            finalArtDetails = await getDetailsWithPerplexityVision(imageBuffer, locationData, language);
+        }
+
+        if (!finalArtDetails || finalArtDetails.title === "Unknown Artwork" || !finalArtDetails.title) {
+             return res.status(404).json({ success: false, error: 'This artwork could not be identified automatically.' });
         }
         
         res.json({ success: true, data: finalArtDetails });
@@ -107,8 +131,6 @@ app.post('/api/identify', async (req, res) => {
     }
 });
 
-// --- Start the Server ---
+// --- Start Server ---
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
+app.listen(PORT, () => { console.log(`Server is running on port ${PORT}`); });

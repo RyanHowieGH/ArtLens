@@ -1,4 +1,4 @@
-// screens/HomeScreen.js (SIMPLIFIED)
+// screens/HomeScreen.js (CORRECTED WITH MOCK LOCATION)
 import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,26 +6,47 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useLanguage } from '../context/LanguageContext';
 
+// --- STEP 1: DEFINE YOUR MOCK DATA AND TOGGLE ---
+
+// Set this to 'true' to use the coordinates below for testing.
+// !!! IMPORTANT: Set this to 'false' for a real build or when using a real device !!!
+const USE_MOCK_LOCATION = true; 
+
+const MOCK_COORDINATES = {
+  latitude: 51.04,
+  longitude: -114.07,
+};
+
+// --- END OF MOCK DATA SETUP ---
+
 export default function HomeScreen({ navigation }) {
   const { t } = useLanguage(); 
   
   const [mediaLibraryPermission, requestMediaLibraryPermission] = ImagePicker.useMediaLibraryPermissions();
   const [cameraPermission, requestCameraPermission] = ImagePicker.useCameraPermissions();
 
-  // This is the new main function that decides where to go next
+  // This is the main function that decides where to go next
   const navigateToConfirmation = async (imageUri) => {
     let locationCoords = null;
-    try {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        const location = await Location.getCurrentPositionAsync({ maximumAge: 0 });
-        locationCoords = location.coords;
+    
+    // --- STEP 2: USE THE TOGGLE TO DECIDE WHICH LOCATION TO GET ---
+    if (USE_MOCK_LOCATION) {
+      console.log("--- USING MOCK LOCATION FOR TESTING ---");
+      locationCoords = MOCK_COORDINATES;
+    } else {
+      // Otherwise, try to get the real location
+      try {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const location = await Location.getCurrentPositionAsync({ maximumAge: 0 });
+          locationCoords = location.coords;
+        }
+      } catch (error) {
+        console.warn("Could not get real location:", error.message);
       }
-    } catch (error) {
-      console.warn("Could not get location:", error.message);
     }
     
-    // Navigate to the Confirmation screen with the data
+    // Navigate to the Confirmation screen with the correct location data
     navigation.navigate('Confirmation', {
       imageUri: imageUri,
       location: locationCoords,
