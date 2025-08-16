@@ -44,7 +44,7 @@ export default function ConfirmationScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Analyze this Image?</Text>
+      <Text style={styles.header}>{t('confirmHeader')}</Text>
 
       {/* Image Preview */}
       <View style={styles.imageContainer}>
@@ -54,10 +54,10 @@ export default function ConfirmationScreen({ route, navigation }) {
       {/* Action Buttons */}
       <View style={styles.buttonContainer}>
         <TouchableOpacity style={styles.confirmButton} onPress={uploadImage}>
-          <Text style={styles.buttonText}>Confirm & Analyze</Text>
+          <Text style={styles.buttonText}>{t('confirmButton')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
-          <Text style={[styles.buttonText, styles.cancelText]}>Cancel</Text>
+          <Text style={[styles.buttonText, styles.cancelText]}>{t('alertCancel')}</Text>
         </TouchableOpacity>
       </View>
 

@@ -19,6 +19,7 @@ const Tab = createBottomTabNavigator();
 
 // This stack contains the flow from the camera to the results
 function HomeStack() {
+  const { t } = useLanguage(); // <-- 1. Get the t() function
   return (
     <Stack.Navigator>
       <Stack.Screen 
@@ -29,12 +30,12 @@ function HomeStack() {
       <Stack.Screen 
         name="Confirmation" 
         component={ConfirmationScreen} 
-        options={{ title: 'Confirm Image' }}
+        options={{ title: t('confirmHeader') }} // Also translate this header
       />
       <Stack.Screen 
         name="Result" 
         component={ResultScreen} 
-        options={{ title: 'Artwork Details' }}
+        options={{ title: t('artworkDetailsHeader') }}
       />
     </Stack.Navigator>
   );

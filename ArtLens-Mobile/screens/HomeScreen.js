@@ -57,7 +57,7 @@ export default function HomeScreen({ navigation }) {
     if (!cameraPermission?.granted) {
       const { status } = await requestCameraPermission();
       if (status !== 'granted') {
-        Alert.alert('Permission required', 'Camera permission is needed.');
+        Alert.alert(t('alertPermissionRequired'), t('alertCameraPermission'));
         return;
       }
     }
@@ -71,7 +71,7 @@ export default function HomeScreen({ navigation }) {
     if (!mediaLibraryPermission?.granted) {
       const { status } = await requestMediaLibraryPermission();
       if (status !== 'granted') {
-        Alert.alert('Permission required', 'Photo library permission is needed.');
+        Alert.alert(t('alertPermissionRequired'), t('alertLibraryPermission'));
         return;
       }
     }
@@ -85,11 +85,13 @@ export default function HomeScreen({ navigation }) {
   };
 
   const handleAnalyzePress = () => {
-    Alert.alert( "Select Image Source", "Choose a photo source:",
+    Alert.alert(
+      t('alertSelectSource'),
+      t('alertSourcePrompt'),
       [
-        { text: "Take Photo", onPress: takePicture },
-        { text: "Choose from Library", onPress: pickImage },
-        { text: "Cancel", style: "cancel" },
+        { text: t('alertTakePhoto'), onPress: takePicture },
+        { text: t('alertChooseLibrary'), onPress: pickImage },
+        { text: t('alertCancel'), style: "cancel" },
       ]
     );
   };
@@ -98,7 +100,7 @@ export default function HomeScreen({ navigation }) {
     <View style={styles.container}>
       <View style={styles.placeholderContainer}>
           <Ionicons name="scan-outline" size={120} color="#ccc" />
-          <Text style={styles.placeholderText}>Ready to discover art?</Text>
+          <Text style={styles.placeholderText}>{t('homeReadyPrompt')}</Text>
       </View>
       <View style={styles.bottomContainer}>
         <TouchableOpacity style={styles.analyzeButton} onPress={handleAnalyzePress}>

@@ -4,14 +4,16 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-nati
 import * as Speech from 'expo-speech'; // Import the speech library
 import { Ionicons } from '@expo/vector-icons'; // Import icons for our button
 import { addFavorite, removeFavorite, isFavorite } from '../services/FavoritesService';
+import { useLanguage } from '../context/LanguageContext';
+
 
 
 export default function ResultScreen({ route, navigation }) {
   const { artwork } = route.params;
-  
-  // --- NEW: State to manage speech ---
-  const [isSpeaking, setIsSpeaking] = useState(false);
+    const [isSpeaking, setIsSpeaking] = useState(false);
   const [isFav, setIsFav] = useState(false);
+  const { t, locale } = useLanguage(); // We also get 'locale' to pass to the speech engine
+
 
   useEffect(() => {
     const checkStatus = async () => {
@@ -49,6 +51,7 @@ export default function ResultScreen({ route, navigation }) {
       // If not speaking, start it
       setIsSpeaking(true);
       Speech.speak(fullTextToSpeak, {
+        language: locale, // <-- IMPORTANT FOR ACCURATE SPEECH
         onDone: () => setIsSpeaking(false),
         onStopped: () => setIsSpeaking(false),
         onError: () => {
@@ -81,7 +84,7 @@ export default function ResultScreen({ route, navigation }) {
           color="white" 
         />
         <Text style={styles.speakButtonText}>
-          {isSpeaking ? 'Stop Reading' : 'Read Aloud'}
+          {isSpeaking ? t('stopReadingButton') : t('readAloudButton')}
         </Text>
       </TouchableOpacity>
 
@@ -96,18 +99,18 @@ export default function ResultScreen({ route, navigation }) {
             />
           </TouchableOpacity>
         </View>
-        <Text style={styles.artist}>by {artwork.artist}</Text>
+        <Text style={styles.artist}>{t('artistByLine')} {artwork.artist}</Text>
       </View>
       
       
 
       <View style={styles.section}>
-        <Text style={styles.heading}>History</Text>
+        <Text style={styles.heading}>{t('historyHeader')}</Text>
         <Text style={styles.body}>{artwork.history}</Text>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.heading}>Trivia</Text>
+        <Text style={styles.heading}>{t('triviaHeader')}</Text>
         {artwork.trivia.map((fact, index) => (
           <Text key={index} style={styles.listItem}>• {fact}</Text>
         ))}
